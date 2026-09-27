@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body {
+    @apply min-h-screen text-white;
+    font-family: 'Inter', sans-serif;
+  
+    /* ✅ Opción activa: fondo oscuro plano */
+   
+  
+    /* Puedes comentar esta línea arriba y descomentar alguna de estas: */
+  
+  
+    /* === Opción 2: gradiente lateral oscuro === */
+    
+  
+  
+    /* === Opción 3: gradiente vibrante diagonal === */
+    /* background: linear-gradient(to bottom right, #6366F1, #8B5CF6, #EC4899); */
+  
+  
+    /* === Opción 4: fondo pastel claro === */
+    /* background-color: #DBEAFE; */
+    /* color: #1E293B; */
+  
+  
+    /* === Opción 5: imagen de fondo === */
+    /* background-image: url('/bg.jpg');
+       background-size: cover;
+       background-position: center; */
+  
+  
+    /* === Opción 6: fondo animado === */
+    
+    background: linear-gradient(270deg, #0F172A, #1E293B);
+    background-size: 400% 400%;
+    animation: gradientMove 8s ease infinite;
+    
+  }
+  
+  @keyframes gradientMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }

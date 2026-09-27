@@ -1,0 +1,9 @@
+.border-dashed {
+  border-style: dashed !important;
+  transition: all 0.2s ease;
+}
+
+.border-dashed:hover {
+  border-color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.03);
+}
