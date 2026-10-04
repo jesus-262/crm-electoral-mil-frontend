@@ -62,7 +62,7 @@ export default function EditarUsuario() {
         {
           nombre: form.nombre,
           cedula: form.cedula,
-          email: form.email,
+          email: form.email.trim() || undefined,
           role: form.role,
           id_lider: form.role === "Sublider" ? Number(form.id_lider) : undefined,
           password: form.password || undefined,
@@ -130,13 +130,12 @@ export default function EditarUsuario() {
         </div>
 
         <div>
-          <label className="block text-slate-300 text-sm font-medium mb-1">Email</label>
+          <label className="block text-slate-300 text-sm font-medium mb-1">Email (Opcional)</label>
           <input
             type="email"
             name="email"
             value={form.email}
             onChange={handleChange}
-            required
             className="w-full bg-slate-800 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
         </div>
@@ -175,7 +174,7 @@ export default function EditarUsuario() {
               <option value="">Seleccione un líder...</option>
               {lideres.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.nombre} ({l.email})
+                  {l.nombre} ({l.cedula})
                 </option>
               ))}
             </select>
@@ -191,6 +190,7 @@ export default function EditarUsuario() {
             name="password"
             value={form.password}
             onChange={handleChange}
+            maxLength={30}
             placeholder="••••••••"
             className="w-full bg-slate-800 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />

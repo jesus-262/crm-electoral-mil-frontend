@@ -144,7 +144,7 @@ export default function Usuarios() {
           <thead className='bg-indigo-600'>
             <tr>
               <th className='px-4 py-2 border border-gray-700'>Nombre</th>
-              <th className='px-4 py-2 border border-gray-700'>Correo</th>
+              <th className='px-4 py-2 border border-gray-700'>Cédula</th>
               <th className='px-4 py-2 border border-gray-700'>Rol</th>
               <th className='px-4 py-2 border border-gray-700'>Total</th>
               <th className='px-4 py-2 border border-gray-700'>Subtotal</th>
@@ -159,7 +159,7 @@ export default function Usuarios() {
                     {usuario.role === 'Lider' && <span className='text-blue-400 mr-1'>👤</span>}
                     {usuario.nombre}
                   </td>
-                  <td className='px-4 py-2 border border-gray-700'>{usuario.email}</td>
+                  <td className='px-4 py-2 border border-gray-700'>{usuario.cedula || "-"}</td>
                   <td className='px-4 py-2 border border-gray-700 text-center'>{getRoleBadge(usuario.role)}</td>
                   <td className='px-4 py-2 border border-gray-700 text-center font-semibold'>{usuario.totalConsultas || 0}</td>
                   <td className='px-4 py-2 border border-gray-700 text-center font-semibold'>{usuario.subtotalConsultas || 0}</td>
@@ -196,7 +196,7 @@ export default function Usuarios() {
                       <span className='text-gray-500 mr-1'>↳</span>
                       <span className='text-green-400'>{sub.nombre}</span>
                     </td>
-                    <td className='px-4 py-2 border border-gray-700'>{sub.email}</td>
+                    <td className='px-4 py-2 border border-gray-700'>{sub.cedula || "-"}</td>
                     <td className='px-4 py-2 border border-gray-700 text-center'>{getRoleBadge(sub.role)}</td>
                     <td className='px-4 py-2 border border-gray-700 text-center font-semibold'>{sub.totalConsultas || 0}</td>
                     <td className='px-4 py-2 border border-gray-700 text-center font-semibold'>{sub.subtotalConsultas || 0}</td>

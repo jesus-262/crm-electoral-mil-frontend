@@ -55,14 +55,17 @@ export default function Register() {
     }
 
     try {
-      // Preparar el body dinámicamente
+      // Preparar el body dinámicamente (email opcional)
       const body = {
         nombre,
         cedula,
-        email,
         password,
         role
       };
+
+      if (email.trim()) {
+        body.email = email.trim();
+      }
 
       if (role === "Sublider") {
         body.id_lider = id_lider;
@@ -122,7 +125,7 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-xs text-gray-300 mb-1">Correo</label>
+              <label className="block text-xs text-gray-300 mb-1">Correo (Opcional)</label>
               <input
                 type="email"
                 maxLength={40}

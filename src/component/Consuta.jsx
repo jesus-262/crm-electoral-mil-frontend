@@ -17,10 +17,10 @@ export default function Consulta() {
   const [mensajeModal, setMensajeModal] = useState("");
   const [total, setTotal] = useState(0);
   const socketRef = useRef(null);
+  const pollingRef = useRef(null);
 
   // Estado para carga masiva
   const [filasExcel, setFilasExcel] = useState([]);
-  const [errorCarga, setErrorCarga] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [progreso, setProgreso] = useState({ actual: 0, total: 0, cedula: "" });
   const [resultados, setResultados] = useState(null);
@@ -76,6 +76,7 @@ export default function Consulta() {
     return () => {
       socket.off("progreso");
       socket.disconnect();
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
 
@@ -117,7 +118,7 @@ export default function Consulta() {
       ['cédula', 'nombre completo', 'folio', 'teléfono'],
       ['123456789', 'Ejemplo', 'F-001', '3001234567'],
     ];
-    for (let i = 0; i < 99; i++) data.push(['', '', '']);
+    for (let i = 0; i < 49; i++) data.push(['', '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -188,6 +189,28 @@ export default function Consulta() {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
+      const headers = json.length > 0
+        ? Object.keys(json[0]).map((h) => h.toLowerCase().trim())
+        : [];
+
+      const tieneCedula = headers.some((h) => h === "cédula" || h === "cedula");
+      const tieneNombre = headers.some((h) => h === "nombre completo" || h === "nombrecompleto" || h === "nombre");
+
+      const faltantes = [];
+      if (!tieneCedula) faltantes.push("cédula");
+      if (!tieneNombre) faltantes.push("nombre completo");
+
+      if (faltantes.length > 0) {
+        setFilasExcel([]);
+        setResultados(null);
+        setProgreso({ actual: 0, total: 0, cedula: "" });
+        setAviso({
+          tipo: "error",
+          texto: `El Excel no tiene la(s) columna(s) requerida(s): ${faltantes.join(" y ")}. Usa la plantilla con las columnas: cédula, nombre completo, folio y teléfono.`,
+        });
+        return;
+      }
+
       const mapeadas = json.map((row) => {
         const rawTelefono = String(row["teléfono"] || row["telefono"] || "").trim();
         return {
@@ -200,18 +223,29 @@ export default function Consulta() {
 
       const conCedula = mapeadas.filter((f) => f.cedula);
 
-      if (conCedula.length > 100) {
-        setErrorCarga(`❌ El archivo tiene ${conCedula.length} registros con cédula. Máximo permitido: 100.`);
+      if (conCedula.length === 0) {
         setFilasExcel([]);
         setResultados(null);
         setProgreso({ actual: 0, total: 0, cedula: "" });
+        setAviso({ tipo: "error", texto: "El Excel no tiene filas con cédula para procesar." });
         return;
       }
 
-      setErrorCarga("");
+      if (conCedula.length > 50) {
+        setFilasExcel([]);
+        setResultados(null);
+        setProgreso({ actual: 0, total: 0, cedula: "" });
+        setAviso({
+          tipo: "error",
+          texto: `El Excel tiene ${conCedula.length} registros con cédula; el máximo es 50. Divide el archivo y vuelve a intentarlo.`,
+        });
+        return;
+      }
+
       setFilasExcel(mapeadas);
       setResultados(null);
       setProgreso({ actual: 0, total: 0, cedula: "" });
+      setAviso(null);
     };
     reader.readAsArrayBuffer(file);
     e.target.value = "";
@@ -229,6 +263,26 @@ export default function Consulta() {
     setResultados(null);
     setProgreso({ actual: 0, total: filasExcel.length, cedula: "Iniciando..." });
 
+    const detenerPolling = () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+
+    const finalizarConResumen = async (resumen) => {
+      detenerPolling();
+      const r = resumen || {};
+      if ((r.errores || 0) > 0 || (r.duplicados || 0) > 0 || (r.inhabilitados || 0) > 0) {
+        setAviso({ tipo: "error", texto: `Carga masiva finalizada con ${r.exitosos} exitosos, ${r.errores} errores, ${r.duplicados} duplicados y ${r.inhabilitados} inhabilitados.` });
+      } else {
+        setAviso({ tipo: "ok", texto: `Carga masiva completada: ${r.exitosos} registros exitosos.` });
+      }
+      await refreshData();
+      setProcesando(false);
+      setModalAbierto(false);
+    };
+
     try {
       const response = await axios.post(
         `${enviroments.backendUrl}/api/consulta/carga-masiva`,
@@ -236,20 +290,45 @@ export default function Consulta() {
         getAuthHeader()
       );
 
-      if (response.data.success) {
+      if (response.data && response.data.jobId) {
+        const jobId = response.data.jobId;
+
+        pollingRef.current = setInterval(async () => {
+          try {
+            const estadoRes = await axios.get(
+              `${enviroments.backendUrl}/api/consulta/carga-masiva/${jobId}`,
+              getAuthHeader()
+            );
+            const job = estadoRes.data;
+
+            if (job.total > 0) {
+              setProgreso((prev) => ({ ...prev, actual: job.procesados || 0, total: job.total }));
+            }
+
+            if (job.estado === "completado") {
+              setResultados({ resumen: job.resumen || {}, resultados: job.resultados || [] });
+              await finalizarConResumen(job.resumen);
+            } else if (job.estado === "error") {
+              detenerPolling();
+              setAviso({ tipo: "error", texto: job.error || "Error en la carga masiva." });
+              setMensajeModal(`❌ ${job.error || "Error en la carga masiva."}`);
+              setModalAbierto(true);
+              setTimeout(() => setModalAbierto(false), 5000);
+              setProcesando(false);
+            }
+          } catch (pollError) {
+            console.error("Error consultando el estado de la carga masiva:", pollError);
+          }
+        }, 4000);
+      } else if (response.data.success) {
         setResultados(response.data);
-        await refreshData();
-        const r = response.data.resumen || {};
-        if ((r.errores || 0) > 0 || (r.duplicados || 0) > 0 || (r.inhabilitados || 0) > 0) {
-          setAviso({ tipo: "error", texto: `Carga masiva finalizada con ${r.exitosos} exitosos, ${r.errores} errores, ${r.duplicados} duplicados y ${r.inhabilitados} inhabilitados.` });
-        } else {
-          setAviso({ tipo: "ok", texto: `Carga masiva completada: ${r.exitosos} registros exitosos.` });
-        }
+        await finalizarConResumen(response.data.resumen);
       } else {
         setAviso({ tipo: "error", texto: response.data.message });
         setMensajeModal(`❌ ${response.data.message}`);
         setModalAbierto(true);
         setTimeout(() => setModalAbierto(false), 5000);
+        setProcesando(false);
       }
     } catch (error) {
       console.error("Error en carga masiva:", error);
@@ -258,9 +337,7 @@ export default function Consulta() {
       setMensajeModal(`❌ ${msg}`);
       setModalAbierto(true);
       setTimeout(() => setModalAbierto(false), 5000);
-    } finally {
       setProcesando(false);
-      setModalAbierto(false);
     }
   };
 
@@ -317,19 +394,11 @@ export default function Consulta() {
         </div>
       )}
 
-      {/* ─── Totales y exportación ─── */}
+      {/* ─── Totales ─── */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <span className="text-gray-400">Total de registros: </span>
           <span className="font-semibold text-lg">{total}</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm transition">
-            ⬇ Descargar Excel
-          </button>
-          <button onClick={handleDownloadPlantilla} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm transition">
-            📋 Descargar Plantilla
-          </button>
         </div>
       </div>
 
@@ -390,7 +459,12 @@ export default function Consulta() {
 
       {/* ─── Carga Masiva ─── */}
       <div className="border-t border-slate-700 pt-6 mt-8">
-        <h2 className="text-lg font-semibold text-indigo-400 mb-4">📦 Carga Masiva</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="text-lg font-semibold text-indigo-400">📦 Carga Masiva</h2>
+          <button onClick={handleDownloadPlantilla} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm transition">
+            📋 Descargar Plantilla
+          </button>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <label className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm cursor-pointer transition">
@@ -437,18 +511,13 @@ export default function Consulta() {
             </div>
 
             {!procesando && (
-              <>
-                <button
-                  onClick={handleProcesar}
-                  disabled={filasConCedula.length === 0 || errorCarga}
-                  className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  🚀 Procesar {filasConCedula.length} consultas
-                </button>
-                {errorCarga && (
-                  <p className="text-red-400 text-sm mt-2">{errorCarga}</p>
-                )}
-              </>
+              <button
+                onClick={handleProcesar}
+                disabled={filasConCedula.length === 0}
+                className="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                🚀 Procesar {filasConCedula.length} consultas
+              </button>
             )}
           </div>
         )}
@@ -572,6 +641,13 @@ export default function Consulta() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* ─── Exportación debajo de la tabla ─── */}
+      <div className="flex justify-end mt-4">
+        <button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm transition">
+          ⬇ Descargar Excel
+        </button>
       </div>
     </div>
   );

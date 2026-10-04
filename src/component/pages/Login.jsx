@@ -4,7 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import LoginAlert from "../Alert/LoginAlert"
 import { enviroments } from '../../env';
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [cedula, setCedula] = useState("");
   const [password, setPassword] = useState("");
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -20,7 +20,7 @@ export default function Login() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ cedula, password })
       });
 
       const data = await res.json();
@@ -63,14 +63,18 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs text-gray-300 mb-1">Correo</label>
+            <label className="block text-xs text-gray-300 mb-1">Cédula</label>
             <input
-              type="email"
-              maxLength={40}
+              type="text"
+              inputMode="numeric"
+              maxLength={20}
               className="w-full bg-[#1E293B] text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              placeholder="tu@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Ej: 123456789"
+              value={cedula}
+              onChange={(e) => {
+                const valor = e.target.value;
+                if (/^[0-9]*$/.test(valor)) setCedula(valor);
+              }}
               required
             />
           </div>
