@@ -1,4 +1,4 @@
-// Deploy: login por cedula 2026-10-03
+// Deploy: login por cedula 2026-10-03 (reintento)
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
