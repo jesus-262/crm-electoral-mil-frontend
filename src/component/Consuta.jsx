@@ -25,6 +25,7 @@ export default function Consulta() {
   const [progreso, setProgreso] = useState({ actual: 0, total: 0, cedula: "" });
   const [resultados, setResultados] = useState(null);
   const [aviso, setAviso] = useState(null);
+  const [captura, setCaptura] = useState(null);
 
   const getAuthHeader = () => {
     const token = localStorage.getItem("token");
@@ -73,8 +74,13 @@ export default function Consulta() {
       setModalAbierto(true);
     });
 
+    socket.on("captura", (data) => {
+      setCaptura(data);
+    });
+
     return () => {
       socket.off("progreso");
+      socket.off("captura");
       socket.disconnect();
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
@@ -144,6 +150,7 @@ export default function Consulta() {
     try {
       setModalAbierto(true);
       setMensajeModal("🔄 Iniciando consulta...");
+      setCaptura(null);
 
       const response = await axios.post(
         `${enviroments.backendUrl}/api/consulta`,
@@ -255,12 +262,14 @@ export default function Consulta() {
     setFilasExcel([]);
     setResultados(null);
     setProgreso({ actual: 0, total: 0, cedula: "" });
+    setCaptura(null);
   };
 
   const handleProcesar = async () => {
     if (!userId || filasExcel.length === 0) return;
     setProcesando(true);
     setResultados(null);
+    setCaptura(null);
     setProgreso({ actual: 0, total: filasExcel.length, cedula: "Iniciando..." });
 
     const detenerPolling = () => {
@@ -368,6 +377,16 @@ export default function Consulta() {
                       {progreso.actual} de {progreso.total}
                     </p>
                   </>
+                )}
+                {captura && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-1 text-left">📸 {captura.nombre}</p>
+                    <img
+                      src={captura.dataUrl}
+                      alt={captura.nombre}
+                      className="w-full rounded-lg border border-gray-300"
+                    />
+                  </div>
                 )}
               </div>
             ) : (
@@ -536,6 +555,16 @@ export default function Consulta() {
               />
             </div>
             <p className="text-xs text-slate-400 mt-1 truncate">{progreso.cedula}</p>
+            {captura && (
+              <div className="mt-3">
+                <p className="text-xs text-slate-400 mb-1">📸 {captura.nombre}</p>
+                <img
+                  src={captura.dataUrl}
+                  alt={captura.nombre}
+                  className="w-full max-w-md rounded-lg border border-slate-600"
+                />
+              </div>
+            )}
           </div>
         )}
 
