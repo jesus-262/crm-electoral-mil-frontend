@@ -378,19 +378,19 @@ export default function Consulta() {
                     </p>
                   </>
                 )}
-                {captura && (
-                  <div className="mt-3">
-                    <p className="text-xs text-gray-500 mb-1 text-left">📸 {captura.nombre}</p>
-                    <img
-                      src={captura.dataUrl}
-                      alt={captura.nombre}
-                      className="w-full rounded-lg border border-gray-300"
-                    />
-                  </div>
-                )}
               </div>
             ) : (
               <p className="text-sm text-center">{mensajeModal}</p>
+            )}
+            {captura && (
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-1 text-left">📸 {captura.nombre}</p>
+                <img
+                  src={captura.dataUrl}
+                  alt={captura.nombre}
+                  className="w-full rounded-lg border border-gray-300"
+                />
+              </div>
             )}
           </div>
         </div>
