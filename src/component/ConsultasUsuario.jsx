@@ -3,10 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import { enviroments } from "../env";
+import { useModal } from "./ui/ModalProvider";
 
 export default function ConsultasUsuario() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { confirmar, mostrarAviso } = useModal();
   const [consultas, setConsultas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [nombreUsuario, setNombreUsuario] = useState("");
@@ -16,6 +18,8 @@ export default function ConsultasUsuario() {
   const [candidatoNumero, setCandidatoNumero] = useState("");
   const [verificando, setVerificando] = useState(false);
   const [resultados, setResultados] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,11 +73,19 @@ export default function ConsultasUsuario() {
 
   const handleVerificar = async () => {
     if (!listaNumero || !candidatoNumero) {
-      alert("Selecciona un partido y un número de candidato");
+      mostrarAviso({
+        titulo: "Faltan datos",
+        mensaje: "Selecciona un partido y un número de candidato.",
+        tipo: "advertencia",
+      });
       return;
     }
     if (consultas.length === 0) {
-      alert("No hay consultas para verificar");
+      mostrarAviso({
+        titulo: "Sin consultas",
+        mensaje: "No hay consultas para verificar.",
+        tipo: "advertencia",
+      });
       return;
     }
 
@@ -98,7 +110,11 @@ export default function ConsultasUsuario() {
       setResultados(res.data.resultados || []);
     } catch (error) {
       console.error("Error verificando:", error);
-      alert("Error al verificar los votos");
+      mostrarAviso({
+        titulo: "Error",
+        mensaje: "Error al verificar los votos.",
+        tipo: "error",
+      });
     } finally {
       setVerificando(false);
     }
@@ -108,14 +124,25 @@ export default function ConsultasUsuario() {
     setDescargando(true);
     try {
       const token = localStorage.getItem("token");
+
+      // Si hay búsqueda activa, exportar solo los que coinciden (con sus resultados alineados)
+      const qFiltro = busqueda.trim();
+      const resultadosParaExportar = qFiltro
+        ? consultasFiltradas.map((c) => {
+            const idx = consultas.indexOf(c);
+            return resultados && idx >= 0 ? resultados[idx] : null;
+          })
+        : resultados || [];
+
       const response = await axios.get(
         `${enviroments.backendUrl}/api/consulta/exportar/${userId}`,
         {
           responseType: "blob",
           params: {
-            resultados: JSON.stringify(resultados || []),
+            resultados: JSON.stringify(resultadosParaExportar),
             listaNumero: listaNumero || "",
             candidatoNumero: candidatoNumero || "",
+            q: qFiltro,
           },
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -136,7 +163,18 @@ export default function ConsultasUsuario() {
   };
 
   const handleDeleteConsulta = async (id) => {
-    if (!window.confirm("¿Seguro que quieres eliminar este registro?")) return;
+    const ok = await confirmar({
+      titulo: "Eliminar registro",
+      mensaje:
+        "¿Seguro que quieres eliminar este registro? Esta acción no se puede deshacer.",
+      textoConfirmar: "Eliminar",
+      textoCancelar: "Cancelar",
+      peligro: true,
+      icono: "🗑️",
+    });
+
+    if (!ok) return;
+
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
@@ -149,9 +187,14 @@ export default function ConsultasUsuario() {
       );
       setConsultas(res.data);
       setResultados(null);
+      setPaginaActual(1);
     } catch (err) {
       console.error("Error eliminando el registro:", err);
-      alert("Error al eliminar el registro");
+      mostrarAviso({
+        titulo: "Error",
+        mensaje: "Error al eliminar el registro.",
+        tipo: "error",
+      });
     }
   };
 
@@ -162,6 +205,26 @@ export default function ConsultasUsuario() {
       </div>
     );
   }
+
+  // ─── Búsqueda en vivo de la tabla (cédula o nombre, sin tildes ni mayúsculas) ───
+  const normalizarTexto = (texto) =>
+    String(texto || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const q = normalizarTexto(busqueda);
+  const consultasFiltradas = q
+    ? consultas.filter(
+        (item) =>
+          normalizarTexto(item.cedula).includes(q) ||
+          normalizarTexto(item.nombreCompleto).includes(q)
+      )
+    : consultas;
+
+  // ─── Paginación: 20 por página solo si hay más de 20 registros ───
+  const ITEMS_POR_PAGINA = 20;
+  const totalPaginas = Math.ceil(consultasFiltradas.length / ITEMS_POR_PAGINA);
+  const paginaEfectiva = Math.min(paginaActual, Math.max(1, totalPaginas));
+  const inicio = (paginaEfectiva - 1) * ITEMS_POR_PAGINA;
+  const consultasPagina = consultasFiltradas.slice(inicio, inicio + ITEMS_POR_PAGINA);
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-white p-6 max-w-6xl mx-auto">
@@ -278,14 +341,27 @@ export default function ConsultasUsuario() {
         )}
       </div>
 
+      {/* ─── Buscador en vivo ─── */}
+      <div className="mb-4">
+        <label className="block text-xs text-gray-300 mb-1">Buscar por cédula o nombre</label>
+        <input
+          type="text"
+          value={busqueda}
+          onChange={(e) => {
+            setBusqueda(e.target.value);
+            setPaginaActual(1);
+          }}
+          className="w-full md:w-80 bg-[#1E293B] text-white border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full bg-[#1E293B] text-white border border-gray-700 rounded-md">
           <thead className="bg-indigo-600 text-xs font-semibold uppercase">
             <tr>
-              <th className="px-4 py-2 border border-gray-700">Folio</th>
-              <th className="px-4 py-2 border border-gray-700">Teléfono</th>
-              <th className="px-4 py-2 border border-gray-700">Nombre</th>
               <th className="px-4 py-2 border border-gray-700">Cédula</th>
+              <th className="px-4 py-2 border border-gray-700">Nombre</th>
+              <th className="px-4 py-2 border border-gray-700">Teléfono</th>
               <th className="px-4 py-2 border border-gray-700">Departamento</th>
               <th className="px-4 py-2 border border-gray-700">Municipio</th>
               <th className="px-4 py-2 border border-gray-700">Puesto</th>
@@ -296,19 +372,16 @@ export default function ConsultasUsuario() {
             </tr>
           </thead>
           <tbody>
-            {consultas.map((item, index) => (
+            {consultasPagina.map((item, index) => (
               <tr key={index} className="text-sm hover:bg-[#334155] transition">
-                <td className="px-4 py-2 border border-gray-700 text-center">
-                  {item.folio || "-"}
-                </td>
-                <td className="px-4 py-2 border border-gray-700 text-center">
-                  {item.telefono || "-"}
+                <td className="px-4 py-2 border border-gray-700">
+                  {item.cedula}
                 </td>
                 <td className="px-4 py-2 border border-gray-700">
                   {item.nombreCompleto || "-"}
                 </td>
-                <td className="px-4 py-2 border border-gray-700">
-                  {item.cedula}
+                <td className="px-4 py-2 border border-gray-700 text-center">
+                  {item.telefono || "-"}
                 </td>
                 <td className="px-4 py-2 border border-gray-700">
                   {item.departamento || "-"}
@@ -374,16 +447,44 @@ export default function ConsultasUsuario() {
                 </td>
               </tr>
             ))}
-            {consultas.length === 0 && (
+            {consultasPagina.length === 0 && (
               <tr>
-                <td colSpan="11" className="text-center py-6 text-gray-400">
-                  Este usuario no tiene consultas registradas.
+                <td colSpan="10" className="text-center py-6 text-gray-400">
+                  {busqueda.trim() !== "" ? "No hay resultados para la búsqueda." : "Este usuario no tiene consultas registradas."}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* ─── Paginación ─── */}
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <p className="text-slate-400">
+            Mostrando {inicio + 1}-{Math.min(inicio + ITEMS_POR_PAGINA, consultasFiltradas.length)} de {consultasFiltradas.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+              disabled={paginaActual === 1}
+              className="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              ← Anterior
+            </button>
+            <span className="text-slate-300">
+              Página {paginaActual} de {totalPaginas}
+            </span>
+            <button
+              onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+              disabled={paginaActual === totalPaginas}
+              className="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,9 +9,11 @@ import { usePdfProcessor } from './hooks/usePdfProcessor';
 import { getRecords, clearAllRecords, getConcejoRecords, clearConcejoRecords } from './services/apiClient';
 import { useFilters } from './hooks/useFilters';
 import { useResultsFilter } from './hooks/useResultsFilter';
+import { useModal } from '../component/ui/ModalProvider';
 import './Escrutinio.css';
 
 export default function EscrutinioApp() {
+  const { mostrarAviso } = useModal();
   const [tipoActivo, setTipoActivo] = useState('presidenciales');
   const [records, setRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
@@ -45,9 +47,13 @@ export default function EscrutinioApp() {
       setRecords([]);
     } catch (err) {
       console.error('Error limpiando datos:', err);
-      alert('Error al limpiar los datos');
+      mostrarAviso({
+        titulo: 'Error',
+        mensaje: 'Error al limpiar los datos.',
+        tipo: 'error',
+      });
     }
-  }, [tipoActivo]);
+  }, [tipoActivo, mostrarAviso]);
 
   useEffect(() => { loadRecords(tipoActivo); }, []);
   const { files, addFiles, removeFile, clearFiles, cancelFile, processing, processFiles, processInfo, error, queueProgress, fileStatuses } = usePdfProcessor();
@@ -85,10 +91,15 @@ export default function EscrutinioApp() {
   const handleAddFiles = useCallback((newFiles) => {
     const result = addFiles(newFiles);
     if (result.rejected.length > 0) {
-      alert('Solo se permiten archivos con extensión .pdf');
+      mostrarAviso({
+        titulo: 'Archivo no válido',
+        mensaje: 'Solo se permiten archivos con extensión .pdf.',
+        tipo: 'advertencia',
+        icono: '📄',
+      });
     }
     return result;
-  }, [addFiles]);
+  }, [addFiles, mostrarAviso]);
 
   const handleProcess = useCallback(async () => {
     await processFiles(recordsRef.current, (newResults) => {

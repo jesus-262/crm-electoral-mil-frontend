@@ -21,12 +21,16 @@ export default function GraficaComunasConsulta() {
   const [data3, setData3] = useState({ rows: [], totalRegistros: 0 }); // Nueva consulta
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [seHaBuscado, setSeHaBuscado] = useState(false);
 
   const fetchData = async () => {
     if (!dato.trim()) return;
 
     setLoading(true);
     setError("");
+    setAviso("");
+    setSeHaBuscado(true);
     setData({ rows: [], totalRegistros: 0 });
     setData2({ rows: [], totalRegistros: 0, usuario: null });
     setData3({ rows: [], totalRegistros: 0 });
@@ -37,17 +41,23 @@ export default function GraficaComunasConsulta() {
       const baseUrl = enviroments.backendUrl;
       const encodedDato = encodeURIComponent(dato);
 
+      // 🔹 Capturar el error de cada petición por separado para saber qué pasó
+      const errs = [null, null, null];
+
       const [res1, res2, res3] = await Promise.all([
         axios.get(`${baseUrl}/api/graficas/comunas/consulta/${encodedDato}`, config).catch((err) => {
           console.error("Error en comunas/consulta:", err);
+          errs[0] = err;
           return null;
         }),
         axios.get(`${baseUrl}/api/graficas/comunas/lideres/${encodedDato}`, config).catch((err) => {
           console.error("Error en comunas/lideres:", err);
+          errs[1] = err;
           return null;
         }),
         axios.get(`${baseUrl}/api/graficas/comunas/consulta/comunapuesto/${encodedDato}`, config).catch((err) => {
           console.error("Error en comunas/consulta/comunapuesto:", err);
+          errs[2] = err;
           return null;
         }),
       ]);
@@ -71,8 +81,23 @@ export default function GraficaComunasConsulta() {
         });
       }
 
+      const usuarioEncontrado = res1?.data?.usuario || res2?.data?.usuario || null;
+      const tieneDatosGrafica =
+        (res1?.data?.rows?.length || 0) > 0 || (res3?.data?.rows?.length || 0) > 0;
+
       if (!res1 && !res2 && !res3) {
-        setError("No se encontraron resultados. Verifique el nombre o cédula.");
+        // Las 3 fallaron → usuario no existe (404) o error de servidor (5xx)
+        const hayErrorServidor = errs.some((e) => e?.response?.status >= 500);
+        setError(
+          hayErrorServidor
+            ? "Error inesperado al realizar la consulta."
+            : "No se encontraron resultados. Verifique el nombre o cédula."
+        );
+      } else if (usuarioEncontrado && !tieneDatosGrafica) {
+        // Usuario existe pero no tiene consultas que graficar
+        setAviso(
+          `El usuario ${usuarioEncontrado.nombre} (cédula ${usuarioEncontrado.cedula}) existe, pero no tiene consultas registradas.`
+        );
       }
     } catch (err) {
       console.error("Error inesperado:", err);
@@ -107,7 +132,7 @@ export default function GraficaComunasConsulta() {
     plugins: {
       title: {
         display: true,
-        text: "Gráfica por comuna",
+        text: `Gráfica por comuna — registros del ${data.usuario?.role || "usuario"}`,
         font: { size: 20 },
         color: "#1f2937",
       },
@@ -138,13 +163,19 @@ export default function GraficaComunasConsulta() {
     plugins: {
       title: {
         display: true,
-        text: "Gráfica por comuna y puesto",
+        text: `Gráfica por comuna y puesto — registros del ${data.usuario?.role || "usuario"}`,
         font: { size: 20 },
         color: "#1f2937",
       },
       legend: { display: false },
     },
   };
+
+  // 🔹 Suma de consultas de los sublideres (para la etiqueta de la tabla)
+  const totalConsultasSublideres = data2.rows.reduce(
+    (sum, r) => sum + (Number(r.totalConsultas) || 0),
+    0
+  );
 
   // 🔹 Función para descargar Excel filtrado por dato
   const handleDownload = async () => {
@@ -171,7 +202,12 @@ export default function GraficaComunasConsulta() {
       link.remove();
     } catch (err) {
       console.error("Error descargando el Excel:", err);
-      setError("No se pudo descargar el Excel");
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "No se pudo descargar el Excel";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -184,6 +220,10 @@ export default function GraficaComunasConsulta() {
         <label className="block text-slate-300 text-sm font-medium mb-2">
           Nombre Completo o Cédula
         </label>
+        <p className="text-slate-500 text-xs mb-2">
+          Busca por nombre o cédula de un <span className="text-slate-300 font-medium">usuario del sistema</span> (la persona que registra las consultas).
+          Se muestra cuántos <span className="text-slate-300 font-medium">registros (consultas de cédulas)</span> tiene ese usuario y en qué comunas y puestos de votación están.
+        </p>
 
         <div className="flex gap-4 items-center">
           <div className="relative flex-1">
@@ -210,20 +250,42 @@ export default function GraficaComunasConsulta() {
             {loading && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             {loading ? "Consultando..." : "Consultar"}
           </button>
-
-          {data.totalRegistros !== undefined && (
-            <span className="text-white ml-4 font-medium whitespace-nowrap">
-              Total: {data.totalRegistros}
-            </span>
-          )}
         </div>
+
+        {/* 🔹 Totales de la búsqueda */}
+        {seHaBuscado && data.usuario && (
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-1 items-center">
+            <p className="text-white font-medium">
+              Total de registros del {data.usuario.role}:{" "}
+              <span className="text-blue-400">{data.totalRegistros || 0}</span>
+            </p>
+            {data.usuario.role === "Lider" && data2.rows.length > 0 && (
+              <>
+                <p className="text-white font-medium">
+                  Registros de los sublideres:{" "}
+                  <span className="text-emerald-400">{totalConsultasSublideres}</span>
+                </p>
+                <p className="text-white font-semibold">
+                  Total general:{" "}
+                  <span className="text-amber-400">
+                    {(data.totalRegistros || 0) + totalConsultasSublideres}
+                  </span>
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         {/* 🔹 Líderes / Sublíderes */}
         {data2.rows.length > 0 && (
           <div className="mt-4 overflow-x-auto">
-            {data2.totalRegistros !== undefined && (
+            {data2.usuario && (
               <p className="text-slate-300 text-sm font-medium mb-2">
-                Total registros de {data2.usuario?.role || "usuarios"}: {data2.totalRegistros}
+                {data2.usuario.role === "Lider"
+                  ? `Sublideres: ${data2.rows.length}`
+                  : data2.usuario.role === "Sublider"
+                  ? `Lider asignado: ${data2.rows.length}`
+                  : `Usuarios relacionados: ${data2.rows.length}`}
               </p>
             )}
             <table className="w-full text-sm text-white">
@@ -260,7 +322,8 @@ export default function GraficaComunasConsulta() {
       <div className="p-6 bg-white rounded-2xl shadow-lg mb-8">
         {loading && <p className="text-gray-500">Cargando datos...</p>}
         {error && <p className="text-red-500">{error}</p>}
-        {!loading && !error && rows.length === 0 && (
+        {aviso && <p className="text-amber-500">{aviso}</p>}
+        {!loading && !error && !aviso && rows.length === 0 && (
           <p className="text-gray-500">No hay registros para mostrar.</p>
         )}
 

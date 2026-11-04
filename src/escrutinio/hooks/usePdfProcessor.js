@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
+import { useModal } from '../../component/ui/ModalProvider';
 
 export function usePdfProcessor() {
+  const { mostrarAviso } = useModal();
   const [files, setFiles] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState([]);
@@ -144,15 +146,25 @@ export function usePdfProcessor() {
       skippedRef.current = new Set();
 
       if (duplicados.length === 1) {
-        alert(`⚠️ Este PDF ya fue procesado anteriormente y no se volvió a guardar:\n\n${duplicados[0]}`);
+        mostrarAviso({
+          titulo: 'PDF duplicado',
+          mensaje: `Este PDF ya fue procesado anteriormente y no se volvió a guardar:\n\n${duplicados[0]}`,
+          tipo: 'advertencia',
+          icono: '⚠️',
+        });
       } else if (duplicados.length > 1) {
-        alert(`⚠️ ${duplicados.length} PDFs ya fueron procesados anteriormente y no se volvieron a guardar:\n\n${duplicados.join('\n')}`);
+        mostrarAviso({
+          titulo: 'PDFs duplicados',
+          mensaje: `${duplicados.length} PDFs ya fueron procesados anteriormente y no se volvieron a guardar:\n\n${duplicados.join('\n')}`,
+          tipo: 'advertencia',
+          icono: '⚠️',
+        });
       }
       if (duplicados.length > 0) {
         setDuplicates(duplicados);
       }
     }
-  }, [files]);
+  }, [files, mostrarAviso]);
 
   const cancelFile = useCallback((index) => {
     const file = files[index];

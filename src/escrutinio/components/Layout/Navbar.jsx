@@ -1,8 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useModal } from '../../../component/ui/ModalProvider';
 
 export default function Navbar({ records, onClearData }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { confirmar } = useModal();
   const isConcejo = location.pathname.includes('concejo');
 
   const dbTotalMesas = records.length;
@@ -64,10 +66,19 @@ export default function Navbar({ records, onClearData }) {
 
           {onClearData && (
             <button
-              onClick={() => {
-                if (confirm('¿Estás seguro de borrar todos los datos de escrutinio?')) {
-                  onClearData();
-                }
+              onClick={async () => {
+                const ok = await confirmar({
+                  titulo: isConcejo ? 'Borrar datos de concejo' : 'Limpiar datos de escrutinio',
+                  mensaje: isConcejo
+                    ? '¿Estás seguro de borrar todos los datos de concejo? Esta acción no se puede deshacer.'
+                    : '¿Estás seguro de borrar todos los datos de escrutinio? Esta acción no se puede deshacer.',
+                  textoConfirmar: 'Borrar',
+                  textoCancelar: 'Cancelar',
+                  peligro: true,
+                  icono: '🗑️',
+                });
+
+                if (ok) onClearData();
               }}
               className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded transition-colors ml-2"
             >

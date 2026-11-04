@@ -1,9 +1,11 @@
 import { useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
+import { useModal } from "./ui/ModalProvider";
 
 export default function Header() {
   const navigate = useNavigate();
+  const { confirmar } = useModal();
   const [nombre, setNombre] = useState("");
   const [role, setRole] = useState("");
 
@@ -22,11 +24,20 @@ export default function Header() {
     }
   }, []);
 
-  const handleLogout = () => {
-    if (confirm("¿Deseas cerrar sesión?")) {
-      localStorage.removeItem("token");
-      navigate("/login");
-    }
+  const handleLogout = async () => {
+    const ok = await confirmar({
+      titulo: "Cerrar sesión",
+      mensaje: "¿Deseas cerrar sesión?",
+      textoConfirmar: "Sí, salir",
+      textoCancelar: "Cancelar",
+      peligro: true,
+      icono: "🚪",
+    });
+
+    if (!ok) return;
+
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
   return (

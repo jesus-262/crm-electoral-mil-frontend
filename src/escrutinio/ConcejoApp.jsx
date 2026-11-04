@@ -10,9 +10,11 @@ import { getConcejoRecords, clearConcejoRecords } from './services/apiClient';
 import { uploadConcejoPdfs } from './services/apiClient';
 import { useFilters } from './hooks/useFilters';
 import { useResultsFilter } from './hooks/useResultsFilter';
+import { useModal } from '../component/ui/ModalProvider';
 import './Escrutinio.css';
 
 export default function ConcejoApp() {
+  const { confirmar, mostrarAviso } = useModal();
   const [records, setRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const recordsRef = useRef(records);
@@ -38,15 +40,29 @@ export default function ConcejoApp() {
       clearFiles();
     } catch (err) {
       console.error('Error limpiando datos:', err);
-      alert('Error al limpiar los datos');
+      mostrarAviso({
+        titulo: 'Error',
+        mensaje: 'Error al limpiar los datos.',
+        tipo: 'error',
+      });
     }
-  }, [clearFiles]);
+  }, [clearFiles, mostrarAviso]);
 
-  const handleBorrarBD = useCallback(() => {
-    if (window.confirm('¿Estás seguro de borrar TODA la base de datos de concejo? Esta acción no se puede deshacer.')) {
-      handleClearData();
-    }
-  }, [handleClearData]);
+  const handleBorrarBD = useCallback(async () => {
+    const ok = await confirmar({
+      titulo: 'Borrar base de datos de concejo',
+      mensaje:
+        '¿Estás seguro de borrar TODA la base de datos de concejo? Esta acción no se puede deshacer.',
+      textoConfirmar: 'Borrar',
+      textoCancelar: 'Cancelar',
+      peligro: true,
+      icono: '🗑️',
+    });
+
+    if (!ok) return;
+
+    handleClearData();
+  }, [handleClearData, confirmar]);
 
   useEffect(() => { loadRecords(); }, []);
   const { filters, setFilters, filterOptions, aggregateData, filteredRecords } = useFilters(records);
@@ -83,10 +99,15 @@ export default function ConcejoApp() {
   const handleAddFiles = useCallback((newFiles) => {
     const result = addFiles(newFiles);
     if (result.rejected.length > 0) {
-      alert('Solo se permiten archivos con extensión .pdf');
+      mostrarAviso({
+        titulo: 'Archivo no válido',
+        mensaje: 'Solo se permiten archivos con extensión .pdf.',
+        tipo: 'advertencia',
+        icono: '📄',
+      });
     }
     return result;
-  }, [addFiles]);
+  }, [addFiles, mostrarAviso]);
 
   const handleProcess = useCallback(async () => {
     await processFiles(recordsRef.current, (newResults) => {

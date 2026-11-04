@@ -3,10 +3,9 @@ import { useDropzone } from 'react-dropzone';
 
 export default function FileUploader({ files, onAddFiles, onRemoveFile, onCancelFile, onClearFiles, onProcess, processing, queueProgress, fileStatuses }) {
   const onDrop = useCallback((accepted, rejected) => {
-    const result = onAddFiles([...accepted, ...rejected.map(r => r.file)]);
-    if (rejected.length > 0) {
-      alert('Solo se permiten archivos con extensión .pdf');
-    }
+    // El aviso de archivos rechazados lo muestra el contenedor (handleAddFiles),
+    // así se evita un modal duplicado al arrastrar un archivo no válido.
+    onAddFiles([...accepted, ...rejected.map(r => r.file)]);
   }, [onAddFiles]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

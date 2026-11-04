@@ -3,9 +3,11 @@ import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { enviroments } from '../env';
+import { useModal } from './ui/ModalProvider';
 
 export default function Usuarios() {
   const navigate = useNavigate();
+  const { confirmar, mostrarAviso } = useModal();
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [token, setToken] = useState(null);
@@ -17,7 +19,12 @@ export default function Usuarios() {
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (!storedToken) {
-      alert('No estás autenticado.');
+      mostrarAviso({
+        titulo: 'Sesión requerida',
+        mensaje: 'No estás autenticado. Inicia sesión para continuar.',
+        tipo: 'error',
+        icono: '🔒',
+      });
       return;
     }
 
@@ -27,7 +34,12 @@ export default function Usuarios() {
       setToken(storedToken);
 
       if (decoded.role !== 'Administrador') {
-        alert('Acceso denegado: solo para administradores');
+        mostrarAviso({
+          titulo: 'Acceso denegado',
+          mensaje: 'Solo los administradores pueden ver esta sección.',
+          tipo: 'error',
+          icono: '⛔',
+        });
         return;
       }
 
@@ -48,33 +60,50 @@ export default function Usuarios() {
 
       fetchUsuarios();
     } catch (e) {
-      alert('Token inválido');
+      mostrarAviso({
+        titulo: 'Sesión inválida',
+        mensaje: 'Tu token no es válido. Vuelve a iniciar sesión.',
+        tipo: 'error',
+        icono: '🔒',
+      });
     }
   }, []);
 
-  const eliminarUsuario = async (id) => {
-    const confirmar = confirm(
-      '⚠️ Esta acción eliminará al usuario y TODAS sus consultas asociadas.\n\n' +
-      '¿Estás seguro de continuar?\n\nSelecciona \'Aceptar\' para confirmar o \'Cancelar\' para abortar.'
-    );
+  const eliminarUsuario = async (usuario) => {
+    const ok = await confirmar({
+      titulo: 'Eliminar usuario',
+      mensaje:
+        `Esta acción eliminará a ${usuario.nombre}` +
+        `${usuario.cedula ? ` (cédula ${usuario.cedula})` : ''} y TODAS sus consultas asociadas.\n\n` +
+        'Esta acción no se puede deshacer.',
+      textoConfirmar: 'Eliminar',
+      textoCancelar: 'Cancelar',
+      peligro: true,
+      icono: '🗑️',
+    });
 
-    if (!confirmar) {
-      alert('⛔ Acción cancelada.');
-      return;
-    }
+    if (!ok) return;
 
     try {
-      await axios.delete(enviroments.backendUrl + '/api/admin/users/' + id, {
+      await axios.delete(enviroments.backendUrl + '/api/admin/users/' + usuario.id, {
         headers: {
           Authorization: 'Bearer ' + token,
         },
       });
 
-      setUsuarios(usuarios.filter((u) => u.id !== id));
-      alert('✅ Usuario y sus consultas eliminados correctamente.');
+      setUsuarios(usuarios.filter((u) => u.id !== usuario.id));
+      mostrarAviso({
+        titulo: 'Usuario eliminado',
+        mensaje: 'El usuario y sus consultas fueron eliminados correctamente.',
+        tipo: 'exito',
+      });
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
-      alert('❌ No se pudo eliminar el usuario.');
+      mostrarAviso({
+        titulo: 'Error',
+        mensaje: 'No se pudo eliminar el usuario.',
+        tipo: 'error',
+      });
     }
   };
 
@@ -180,7 +209,7 @@ export default function Usuarios() {
                     </button>
                     {usuario.role !== 'Administrador' && (
                       <button
-                        onClick={() => eliminarUsuario(usuario.id)}
+                        onClick={() => eliminarUsuario(usuario)}
                         className='bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1.5 rounded'
                         title='Eliminar usuario'
                       >
@@ -216,7 +245,7 @@ export default function Usuarios() {
                         ⚙️
                       </button>
                       <button
-                        onClick={() => eliminarUsuario(sub.id)}
+                        onClick={() => eliminarUsuario(sub)}
                         className='bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1.5 rounded'
                         title='Eliminar usuario'
                       >

@@ -11,14 +11,16 @@ import Grafica from './component/pages/Grafica'
 import ConsultasUsuario from './component/ConsultasUsuario'
 import PresidencialesApp from './escrutinio/PresidencialesApp.jsx'
 import ConcejoApp from './escrutinio/ConcejoApp.jsx'
+import RestablecerPassword from './component/pages/RestablecerPassword'
+import { ModalProvider } from './component/ui/ModalProvider'
 
 function App() {
   const location = useLocation();
   const token = localStorage.getItem("token");
-  const hideHeader = ['/login'].includes(location.pathname);
+  const hideHeader = ['/login'].includes(location.pathname) || location.pathname.startsWith('/restablecer');
 
   return (
-    <>
+    <ModalProvider>
       {!hideHeader && <Header />}
       <Routes>
         <Route path="/" element={<Index />} />
@@ -29,6 +31,7 @@ function App() {
             token ? <Navigate to="/" replace /> : <Login />
           }
         />
+        <Route path="/restablecer/:token" element={<RestablecerPassword />} />
         <Route
           path="/admin"
           element={
@@ -95,7 +98,7 @@ function App() {
           </div>
         } />
       </Routes>
-    </>
+    </ModalProvider>
   );
 }
 
