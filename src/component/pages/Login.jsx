@@ -257,13 +257,10 @@ export default function Login() {
               </p>
             )}
 
-            {/* Límite diario de Brevo (300 correos/día) */}
+            {/* Límite diario de correos (300/día): el enlace no se envía ni queda en cola */}
             {esLimiteDiario && (
-              <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded px-2 py-1.5 space-y-1">
+              <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded px-2 py-1.5">
                 <p>⏳ {pasoRecuperar.mensaje}</p>
-                <p className="text-amber-200/80">
-                  No te llegará el correo hasta que el límite se reinicie (medianoche).
-                </p>
               </div>
             )}
 
