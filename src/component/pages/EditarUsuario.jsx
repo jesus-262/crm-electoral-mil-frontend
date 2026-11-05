@@ -125,6 +125,7 @@ export default function EditarUsuario() {
             name="cedula"
             value={form.cedula}
             onChange={handleChange}
+            maxLength={20}
             className="w-full bg-slate-800 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
         </div>
