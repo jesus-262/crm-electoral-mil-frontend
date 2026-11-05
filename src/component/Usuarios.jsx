@@ -16,6 +16,15 @@ export default function Usuarios() {
   const [paginaActual, setPaginaActual] = useState(1);
   const ITEMS_POR_PAGINA = 10;
 
+  const cargarUsuarios = async (tokenUsar) => {
+    const res = await axios.get(enviroments.backendUrl + '/api/admin/users', {
+      headers: {
+        Authorization: 'Bearer ' + tokenUsar,
+      },
+    });
+    setUsuarios(res.data);
+  };
+
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (!storedToken) {
@@ -45,12 +54,7 @@ export default function Usuarios() {
 
       const fetchUsuarios = async () => {
         try {
-          const res = await axios.get(enviroments.backendUrl + '/api/admin/users', {
-            headers: {
-              Authorization: 'Bearer ' + storedToken,
-            },
-          });
-          setUsuarios(res.data);
+          await cargarUsuarios(storedToken);
         } catch (err) {
           console.error('Error al obtener usuarios:', err);
         } finally {
@@ -70,12 +74,31 @@ export default function Usuarios() {
   }, []);
 
   const eliminarUsuario = async (usuario) => {
+    const totalPropias = Number(usuario.totalConsultas || 0);
+    const subliders = usuario.role === 'Lider' ? (usuario.subliders || []) : [];
+    const totalSubliders = subliders.reduce((suma, s) => suma + Number(s.totalConsultas || 0), 0);
+    const totalRegistros = totalPropias + totalSubliders;
+
+    let mensaje =
+      `Esta acción eliminará a ${usuario.nombre}` +
+      `${usuario.cedula ? ` (cédula ${usuario.cedula})` : ''} y TODOS sus registros asociados.\n\n`;
+
+    if (usuario.role === 'Lider') {
+      mensaje += `• Sus votantes registrados: ${totalPropias}\n`;
+      if (subliders.length > 0) {
+        mensaje += `• Sublíderes que se eliminarán: ${subliders.length} (${subliders.map((s) => s.nombre).join(', ')})\n`;
+        mensaje += `• Votantes de los sublíderes: ${totalSubliders}\n`;
+      }
+      mensaje += `\nTotal de registros que se eliminarán: ${totalRegistros}.\n\n`;
+    } else {
+      mensaje += `• Votantes registrados: ${totalPropias}\n\n`;
+    }
+
+    mensaje += 'Esta acción no se puede deshacer.';
+
     const ok = await confirmar({
       titulo: 'Eliminar usuario',
-      mensaje:
-        `Esta acción eliminará a ${usuario.nombre}` +
-        `${usuario.cedula ? ` (cédula ${usuario.cedula})` : ''} y TODAS sus consultas asociadas.\n\n` +
-        'Esta acción no se puede deshacer.',
+      mensaje,
       textoConfirmar: 'Eliminar',
       textoCancelar: 'Cancelar',
       peligro: true,
@@ -85,23 +108,28 @@ export default function Usuarios() {
     if (!ok) return;
 
     try {
-      await axios.delete(enviroments.backendUrl + '/api/admin/users/' + usuario.id, {
+      const { data } = await axios.delete(enviroments.backendUrl + '/api/admin/users/' + usuario.id, {
         headers: {
           Authorization: 'Bearer ' + token,
         },
       });
 
-      setUsuarios(usuarios.filter((u) => u.id !== usuario.id));
+      await cargarUsuarios(token);
+
+      const partes = [`${data.consultasEliminadas || 0} votante(s)`];
+      if (data.sublidersEliminados > 0) {
+        partes.push(`${data.sublidersEliminados} sublíder(es)`);
+      }
       mostrarAviso({
         titulo: 'Usuario eliminado',
-        mensaje: 'El usuario y sus consultas fueron eliminados correctamente.',
+        mensaje: `Se eliminó a ${usuario.nombre} junto con ${partes.join(' y ')}.`,
         tipo: 'exito',
       });
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
       mostrarAviso({
         titulo: 'Error',
-        mensaje: 'No se pudo eliminar el usuario.',
+        mensaje: error.response?.data?.message || 'No se pudo eliminar el usuario.',
         tipo: 'error',
       });
     }

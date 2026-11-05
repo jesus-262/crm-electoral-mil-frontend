@@ -154,7 +154,6 @@ export default function EditarUsuario() {
             <option value="Administrador">Administrador</option>
             <option value="Lider">Lider</option>
             <option value="Sublider">Sublider</option>
-            <option value="Escrutinio">Escrutinio</option>
           </select>
           {form.role === "Administrador" && (
             <p className="text-xs text-slate-500 mt-1">El rol de Administrador no puede modificarse.</p>

@@ -167,7 +167,6 @@ export default function Register() {
                 <option value="Lider">Líder</option>
                 <option value="Sublider">Sublíder</option>
                 <option value="Administrador">Administrador</option>
-                <option value="Escrutinio">Escrutinio</option>
               </select>
             </div>
 
