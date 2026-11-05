@@ -150,7 +150,7 @@ export default function Login() {
             </div>
             <input
               type="password"
-              maxLength={30}
+              maxLength={72}
               className="w-full bg-[#1E293B] text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
               placeholder="••••••••"
               value={password}

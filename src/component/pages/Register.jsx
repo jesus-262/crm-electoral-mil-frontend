@@ -106,7 +106,7 @@ export default function Register() {
               <label className="block text-xs text-gray-300 mb-1">Nombre completo</label>
               <input
                 type="text"
-                maxLength={40}
+                maxLength={100}
                 className="w-full bg-[#1E293B] text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
@@ -128,7 +128,7 @@ export default function Register() {
               <label className="block text-xs text-gray-300 mb-1">Correo (Opcional)</label>
               <input
                 type="email"
-                maxLength={40}
+                maxLength={100}
                 className="w-full bg-[#1E293B] text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -139,7 +139,7 @@ export default function Register() {
               <label className="block text-xs text-gray-300 mb-1">Contraseña</label>
               <input
                 type="password"
-                maxLength={30}
+                maxLength={72}
                 className="w-full bg-[#1E293B] text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -150,7 +150,7 @@ export default function Register() {
               <label className="block text-xs text-gray-300 mb-1">Confirmar contraseña</label>
               <input
                 type="password"
-                maxLength={30}
+                maxLength={72}
                 className="w-full bg-[#1E293B] text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

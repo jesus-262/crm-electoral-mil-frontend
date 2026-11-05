@@ -114,6 +114,7 @@ export default function EditarUsuario() {
             value={form.nombre}
             onChange={handleChange}
             required
+            maxLength={100}
             className="w-full bg-slate-800 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
         </div>
@@ -137,6 +138,7 @@ export default function EditarUsuario() {
             name="email"
             value={form.email}
             onChange={handleChange}
+            maxLength={100}
             className="w-full bg-slate-800 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
         </div>
@@ -190,7 +192,7 @@ export default function EditarUsuario() {
             name="password"
             value={form.password}
             onChange={handleChange}
-            maxLength={30}
+            maxLength={72}
             placeholder="••••••••"
             className="w-full bg-slate-800 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />

@@ -76,7 +76,7 @@ export default function RestablecerPassword() {
               <label className="block text-xs text-gray-300 mb-1">Nueva contraseña</label>
               <input
                 type="password"
-                maxLength={30}
+                maxLength={72}
                 className="w-full bg-[#1E293B] text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="Mínimo 6 caracteres"
                 value={nueva}
@@ -88,7 +88,7 @@ export default function RestablecerPassword() {
               <label className="block text-xs text-gray-300 mb-1">Repetir nueva contraseña</label>
               <input
                 type="password"
-                maxLength={30}
+                maxLength={72}
                 className="w-full bg-[#1E293B] text-white border border-gray-600 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="Repite la contraseña"
                 value={repetir}
