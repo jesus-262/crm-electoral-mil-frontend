@@ -20,6 +20,7 @@ export default function ConsultasUsuario() {
   const [resultados, setResultados] = useState(null);
   const [busqueda, setBusqueda] = useState("");
   const [paginaActual, setPaginaActual] = useState(1);
+  const [borrandoFiltrados, setBorrandoFiltrados] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -226,6 +227,82 @@ export default function ConsultasUsuario() {
   const inicio = (paginaEfectiva - 1) * ITEMS_POR_PAGINA;
   const consultasPagina = consultasFiltradas.slice(inicio, inicio + ITEMS_POR_PAGINA);
 
+  // Recarga la lista del usuario y descarta los resultados de escrutinio,
+  // porque quedaron alineados con las filas anteriores.
+  const recargarConsultas = async () => {
+    const token = localStorage.getItem("token");
+    const res = await axios.get(
+      `${enviroments.backendUrl}/api/consulta/${userId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setConsultas(res.data);
+    setResultados(null);
+    setPaginaActual(1);
+  };
+
+  // ─── Borrado masivo de los registros filtrados (vista de Administrador) ───
+  const handleDeleteFiltrados = async () => {
+    const cantidad = consultasFiltradas.length;
+    if (cantidad === 0 || borrandoFiltrados) return;
+
+    const ok = await confirmar({
+      titulo: "Borrar todos los votantes",
+      mensaje: busqueda.trim()
+        ? `Se eliminarán ${cantidad} registro(s) de ${nombreUsuario} que coinciden con la búsqueda actual. Esta acción no se puede deshacer.`
+        : `Se eliminarán los ${cantidad} registro(s) de ${nombreUsuario}. Esta acción no se puede deshacer.`,
+      textoConfirmar: `Sí, eliminar ${cantidad}`,
+      textoCancelar: "Cancelar",
+      peligro: true,
+      icono: "🗑️",
+    });
+
+    if (!ok) return;
+
+    setBorrandoFiltrados(true);
+    const token = localStorage.getItem("token");
+    const ids = consultasFiltradas.map((item) => item.id);
+    let eliminados = 0;
+
+    try {
+      // El backend acepta máximo 500 IDs por petición: se envía por lotes.
+      for (let i = 0; i < ids.length; i += 500) {
+        const lote = ids.slice(i, i + 500);
+        const { data } = await axios.delete(
+          `${enviroments.backendUrl}/api/consulta/masiva`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            data: { ids: lote, userId: Number(userId) },
+          }
+        );
+        eliminados += Number(data.eliminados ?? lote.length);
+      }
+
+      await recargarConsultas();
+      mostrarAviso({
+        titulo: "Votantes eliminados",
+        mensaje:
+          eliminados === 1
+            ? "Se eliminó 1 votante."
+            : `Se eliminaron ${eliminados} votantes.`,
+        tipo: "exito",
+      });
+    } catch (err) {
+      console.error("Error al eliminar los registros filtrados:", err);
+      mostrarAviso({
+        titulo: "Error",
+        mensaje:
+          eliminados > 0
+            ? `Se eliminaron ${eliminados} de ${cantidad} votantes antes del error. ${err.response?.data?.message || "Inténtalo de nuevo."}`
+            : err.response?.data?.message || "No se pudieron eliminar los registros. Inténtalo de nuevo.",
+        tipo: "error",
+      });
+      // Refrescar para reflejar lo que sí se alcanzó a borrar.
+      await recargarConsultas().catch(() => {});
+    } finally {
+      setBorrandoFiltrados(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-white p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -341,18 +418,34 @@ export default function ConsultasUsuario() {
         )}
       </div>
 
-      {/* ─── Buscador en vivo ─── */}
-      <div className="mb-4">
-        <label className="block text-xs text-gray-300 mb-1">Buscar por cédula o nombre</label>
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => {
-            setBusqueda(e.target.value);
-            setPaginaActual(1);
-          }}
-          className="w-full md:w-80 bg-[#1E293B] text-white border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        />
+      {/* ─── Buscador en vivo y borrado de los registros filtrados ─── */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <label className="block text-xs text-gray-300 mb-1">Buscar por cédula o nombre</label>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              setPaginaActual(1);
+            }}
+            className="w-full md:w-80 bg-[#1E293B] text-white border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+
+        {consultasFiltradas.length > 0 && (
+          <button
+            type="button"
+            onClick={handleDeleteFiltrados}
+            disabled={borrandoFiltrados}
+            title="Elimina solo los registros que coinciden con la búsqueda actual"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {borrandoFiltrados
+              ? "Eliminando..."
+              : `🗑️ Borrar todos los votantes (${consultasFiltradas.length})`}
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
