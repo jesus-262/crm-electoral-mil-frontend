@@ -111,7 +111,11 @@ export default function Login() {
   };
 
   const esErrorRecuperar =
-    pasoRecuperar && ["no_encontrada", "sin_correo", "limite_envio", "error"].includes(pasoRecuperar.estado);
+    pasoRecuperar &&
+    ["no_encontrada", "sin_correo", "limite_envio", "error", "error_correo"].includes(pasoRecuperar.estado);
+
+  // Límite diario de Brevo (300/día): se muestra en ámbar, no como error rojo
+  const esLimiteDiario = pasoRecuperar?.estado === "limite_diario";
 
   return (
     <div className="  h-screen bg-[#0F172A] flex items-center justify-center px-2 relative">
@@ -251,6 +255,16 @@ export default function Login() {
               <p className="text-xs text-emerald-400">
                 ✅ Revisa tu correo para continuar. El enlace vence en 15 minutos.
               </p>
+            )}
+
+            {/* Límite diario de Brevo (300 correos/día) */}
+            {esLimiteDiario && (
+              <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded px-2 py-1.5 space-y-1">
+                <p>⏳ {pasoRecuperar.mensaje}</p>
+                <p className="text-amber-200/80">
+                  No te llegará el correo hasta que el límite se reinicie (medianoche).
+                </p>
+              </div>
             )}
 
             {/* Errores / avisos */}
